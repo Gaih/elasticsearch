@@ -34,6 +34,7 @@ import org.gradle.api.provider.ProviderFactory;
 import org.gradle.internal.jvm.Jvm;
 import org.gradle.jvm.toolchain.JavaInstallation;
 import org.gradle.jvm.toolchain.JavaInstallationRegistry;
+import org.gradle.jvm.toolchain.internal.JavaInstallationProbe;
 import org.gradle.util.GradleVersion;
 
 import javax.inject.Inject;
@@ -69,12 +70,19 @@ public class GlobalBuildInfoPlugin implements Plugin<Project> {
     private static Integer _defaultParallel = null;
 
     private final JavaInstallationRegistry javaInstallationRegistry;
+    private JavaInstallationProbe installationProbe;
     private final ObjectFactory objects;
     private final ProviderFactory providers;
 
     @Inject
-    public GlobalBuildInfoPlugin(JavaInstallationRegistry javaInstallationRegistry, ObjectFactory objects, ProviderFactory providers) {
+    public GlobalBuildInfoPlugin(
+        JavaInstallationRegistry javaInstallationRegistry,
+        JavaInstallationProbe installationProbe,
+        ObjectFactory objects,
+        ProviderFactory providers
+    ) {
         this.javaInstallationRegistry = javaInstallationRegistry;
+        this.installationProbe = installationProbe;
         this.objects = objects;
         this.providers = providers;
     }
@@ -199,9 +207,16 @@ public class GlobalBuildInfoPlugin implements Plugin<Project> {
             int version = v;
             String javaHomeEnvVarName = getJavaHomeEnvVarName(Integer.toString(version));
             if (System.getenv(javaHomeEnvVarName) != null) {
-                String javaHomeString = findJavaHome(Integer.toString(version));
-                Logging.getLogger(getClass()).quiet("javaHomeString: " + javaHomeString);
                 File javaHomeDirectory = new File(findJavaHome(Integer.toString(version)).strip());
+                try {
+                    JavaInstallationProbe.ProbeResult probeResult = installationProbe.checkJdk(javaHomeDirectory);
+                    Logging.getLogger(getClass()).quiet("probeResult.getJavaHome(): " + probeResult.getJavaHome());
+                } catch (Exception e) {
+                    Logging.getLogger(getClass()).quiet("java.home", javaHomeDirectory);
+                    e.printStackTrace();
+                    throw new GradleException("Unable to load java home for '" + javaHomeDirectory + "'", e);
+                }
+
                 Provider<JavaInstallation> javaInstallationProvider = javaInstallationRegistry.installationForDirectory(
                     objects.directoryProperty().fileValue(javaHomeDirectory)
                 );

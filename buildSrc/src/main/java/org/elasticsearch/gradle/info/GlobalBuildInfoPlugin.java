@@ -26,6 +26,7 @@ import org.gradle.api.GradleException;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.file.Directory;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
 import org.gradle.api.model.ObjectFactory;
@@ -209,7 +210,8 @@ public class GlobalBuildInfoPlugin implements Plugin<Project> {
             if (System.getenv(javaHomeEnvVarName) != null) {
                 File javaHomeDirectory = new File(findJavaHome(Integer.toString(version)).strip());
                 try {
-                    JavaInstallationProbe.ProbeResult probeResult = installationProbe.checkJdk(javaHomeDirectory);
+                    Provider<Directory> directoryProperty = objects.directoryProperty().fileValue(javaHomeDirectory);
+                    JavaInstallationProbe.ProbeResult probeResult = installationProbe.checkJdk(directoryProperty.get().getAsFile());
                     Logging.getLogger(getClass()).quiet("probeResult.getJavaHome(): " + probeResult.getJavaHome());
                 } catch (Exception e) {
                     Logging.getLogger(getClass()).quiet("java.home", javaHomeDirectory);
